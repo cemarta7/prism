@@ -26,7 +26,7 @@ class MessageMap
                 SystemMessage::class => self::mapSystemMessage($message),
                 UserMessage::class => self::mapUserMessage($message),
                 AssistantMessage::class => self::mapAssistantMessage($message),
-                ToolResultMessage::class => '', // Replicate doesn't support tool results in this simple format
+                ToolResultMessage::class => self::mapToolResultMessage($message),
                 default => '',
             };
         }
@@ -47,5 +47,24 @@ class MessageMap
     protected static function mapAssistantMessage(AssistantMessage $message): string
     {
         return "Assistant: {$message->content}\n\n";
+    }
+
+    protected static function mapToolResultMessage(ToolResultMessage $message): string
+    {
+        $results = [];
+
+        foreach ($message->toolResults as $result) {
+            $resultText = is_string($result->result)
+                ? $result->result
+                : json_encode($result->result);
+
+            $results[] = sprintf(
+                'Tool: %s\nResult: %s',
+                $result->toolName,
+                $resultText
+            );
+        }
+
+        return "Tool Results:\n".implode("\n\n", $results)."\n\n";
     }
 }

@@ -43,6 +43,14 @@ class Stream
      */
     public function handle(Request $request): Generator
     {
+        // Tool calling is not supported with streaming
+        if ($request->tools() !== []) {
+            throw new PrismException(
+                'Replicate: Tool calling is not supported with streaming. '
+                .'Use ->generate() instead of ->stream()'
+            );
+        }
+
         $this->state->reset()->withMessageId(EventID::generate());
 
         // Build the prompt from messages
