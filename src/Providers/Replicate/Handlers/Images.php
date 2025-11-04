@@ -20,8 +20,9 @@ class Images
 
     public function __construct(
         protected PendingRequest $client,
-        protected int $pollingInterval,
-        protected int $maxWaitTime
+        protected bool $useSyncMode = true,
+        protected int $pollingInterval = 1000,
+        protected int $maxWaitTime = 60
     ) {}
 
     public function handle(Request $request): Response
@@ -35,13 +36,11 @@ class Images
             ),
         ];
 
-        // Create prediction
-        $prediction = $this->createPrediction($this->client, $payload);
-
-        // Wait for completion
-        $completedPrediction = $this->waitForPrediction(
+        // Create prediction and wait for completion (uses sync mode if enabled)
+        $completedPrediction = $this->createAndWaitForPrediction(
             $this->client,
-            $prediction->id,
+            $payload,
+            $this->useSyncMode,
             $this->pollingInterval,
             $this->maxWaitTime
         );

@@ -9,6 +9,7 @@ Replicate is a cloud platform that makes it easy to run machine learning models 
     'api_key' => env('REPLICATE_API_KEY', ''),
     'url' => env('REPLICATE_URL', 'https://api.replicate.com/v1'),
     'webhook_url' => env('REPLICATE_WEBHOOK_URL', null),
+    'use_sync_mode' => env('REPLICATE_USE_SYNC_MODE', true), // Use Prefer: wait header
     'polling_interval' => env('REPLICATE_POLLING_INTERVAL', 1000), // milliseconds
     'max_wait_time' => env('REPLICATE_MAX_WAIT_TIME', 60), // seconds
 ]
@@ -18,19 +19,34 @@ Replicate is a cloud platform that makes it easy to run machine learning models 
 
 - **`api_key`**: Your Replicate API token (get one at [replicate.com/account](https://replicate.com/account))
 - **`url`**: Base API URL (default: `https://api.replicate.com/v1`)
-- **`webhook_url`**: Optional webhook URL for async completion notifications
-- **`polling_interval`**: Time between prediction status checks in milliseconds (default: 1000ms)
+- **`webhook_url`**: Optional webhook URL for async completion notifications  
+- **`use_sync_mode`**: Enable sync mode with `Prefer: wait` header (default: `true`) - reduces latency
+- **`polling_interval`**: Time between prediction status checks in milliseconds (default: 1000ms) - used when sync mode times out
 - **`max_wait_time`**: Maximum time to wait for prediction completion in seconds (default: 60s)
 
 ## How Replicate Works
 
-Replicate's API differs from most LLM providers:
+Replicate's API differs from most LLM providers with an asynchronous prediction-based architecture. Prism provides two modes:
+
+### Sync Mode (Default - Recommended)
+Uses the `Prefer: wait` header to make Replicate wait for the prediction to complete before responding:
+
+1. **Submit prediction with `Prefer: wait`** → Replicate waits up to 60 seconds for completion
+2. **Immediate response** → Get results directly if prediction completes within timeout
+3. **Automatic fallback** → Falls back to polling if prediction takes longer than timeout
+
+**Benefits**: Lower latency, fewer API calls, faster responses for quick predictions.
+
+### Async Mode (Polling)
+Traditional polling approach:
 
 1. **Submit a prediction** → Get a prediction ID
 2. **Poll for completion** → Check prediction status until `succeeded` or `failed`
 3. **Retrieve output** → Extract results from the completed prediction
 
-Prism handles this complexity automatically, providing a synchronous interface while managing the polling internally.
+**When to use**: Disable sync mode (`use_sync_mode: false`) for very long-running predictions (>60s) to avoid timeouts.
+
+Prism handles all complexity automatically, providing a clean synchronous interface regardless of mode.
 
 ## Supported Features
 
@@ -328,6 +344,56 @@ try {
     // HTTP 413: Request payload too large
     // Reduce input size
 }
+```
+
+## Performance Optimization
+
+### Sync Mode vs Async Mode
+
+By default, Prism uses **sync mode** (`Prefer: wait` header) for optimal performance:
+
+```php
+// Sync mode (default) - Recommended for most use cases
+'use_sync_mode' => true,  // Uses Prefer: wait header
+
+// Benefits:
+// ✅ Lower latency (no polling delay)
+// ✅ Fewer API calls (single request)
+// ✅ Faster for quick predictions (<60s)
+// ✅ Automatic fallback to polling if needed
+```
+
+Disable sync mode for very long predictions:
+
+```php
+// Async mode - For predictions that take >60 seconds
+'use_sync_mode' => false,  // Traditional polling
+
+// When to use:
+// • Very large image generations
+// • Complex multi-step processes
+// • Known slow models
+```
+
+### Custom Sync Mode
+
+You can also configure sync mode per provider instance:
+
+```php
+use Prism\Prism\Providers\Replicate\Replicate;
+
+$prism = Prism::text()
+    ->using(
+        new Replicate(
+            apiKey: env('REPLICATE_API_KEY'),
+            url: 'https://api.replicate.com/v1',
+            useSyncMode: true,  // Enable sync mode
+            maxWaitTime: 60      // Max 60s for Prefer: wait
+        ),
+        'meta/meta-llama-3.1-405b-instruct'
+    )
+    ->withPrompt('Generate text')
+    ->generate();
 ```
 
 ## Advanced: Webhooks (Future)

@@ -25,7 +25,7 @@ describe('Real-time SSE Streaming for Replicate', function (): void {
         }
 
         $response = Prism::text()
-            ->using('replicate', 'meta/meta-llama-3.1-405b-instruct')
+            ->using('replicate', 'meta/meta-llama-3-8b-instruct')
             ->withPrompt('Say hello in 5 words or less')
             ->withMaxTokens(20)
             ->asStream();
@@ -84,7 +84,7 @@ describe('Real-time SSE Streaming for Replicate', function (): void {
         }
 
         $response = Prism::text()
-            ->using('replicate', 'meta/meta-llama-3.1-405b-instruct')
+            ->using('replicate', 'meta/meta-llama-3-8b-instruct')
             ->withPrompt('Count from 1 to 10')
             ->withMaxTokens(50)
             ->asStream();

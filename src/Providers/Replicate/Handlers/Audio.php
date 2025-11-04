@@ -20,6 +20,7 @@ class Audio
 
     public function __construct(
         protected PendingRequest $client,
+        protected bool $useSyncMode = true,
         protected int $pollingInterval = 1000,
         protected int $maxWaitTime = 60,
     ) {}
@@ -43,12 +44,11 @@ class Audio
             'input' => $input,
         ];
 
-        $prediction = $this->createPrediction($this->client, $payload);
-
-        // Wait for completion
-        $prediction = $this->waitForPrediction(
+        // Create prediction and wait for completion (uses sync mode if enabled)
+        $prediction = $this->createAndWaitForPrediction(
             $this->client,
-            $prediction->id,
+            $payload,
+            $this->useSyncMode,
             $this->pollingInterval,
             $this->maxWaitTime
         );
@@ -98,12 +98,11 @@ class Audio
             'input' => $input,
         ];
 
-        $prediction = $this->createPrediction($this->client, $payload);
-
-        // Wait for completion
-        $prediction = $this->waitForPrediction(
+        // Create prediction and wait for completion (uses sync mode if enabled)
+        $prediction = $this->createAndWaitForPrediction(
             $this->client,
-            $prediction->id,
+            $payload,
+            $this->useSyncMode,
             $this->pollingInterval,
             $this->maxWaitTime
         );

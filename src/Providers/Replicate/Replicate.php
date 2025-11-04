@@ -41,6 +41,7 @@ class Replicate extends Provider
         #[\SensitiveParameter] public readonly string $apiKey,
         public readonly string $url,
         public readonly ?string $webhookUrl = null,
+        public readonly bool $useSyncMode = true,
         public readonly int $pollingInterval = 1000,
         public readonly int $maxWaitTime = 60,
     ) {}
@@ -48,10 +49,12 @@ class Replicate extends Provider
     #[\Override]
     public function text(TextRequest $request): TextResponse
     {
-        $handler = new Text($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Text(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handle($request);
     }
@@ -59,10 +62,12 @@ class Replicate extends Provider
     #[\Override]
     public function textToSpeech(TextToSpeechRequest $request): TextToSpeechResponse
     {
-        $handler = new Audio($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Audio(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handleTextToSpeech($request);
     }
@@ -70,10 +75,12 @@ class Replicate extends Provider
     #[\Override]
     public function speechToText(SpeechToTextRequest $request): SpeechToTextResponse
     {
-        $handler = new Audio($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Audio(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handleSpeechToText($request);
     }
@@ -81,10 +88,12 @@ class Replicate extends Provider
     #[\Override]
     public function images(ImagesRequest $request): ImagesResponse
     {
-        $handler = new Images($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Images(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handle($request);
     }
@@ -92,10 +101,12 @@ class Replicate extends Provider
     #[\Override]
     public function structured(StructuredRequest $request): StructuredResponse
     {
-        $handler = new StructuredHandler($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new StructuredHandler(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handle($request);
     }
@@ -103,10 +114,12 @@ class Replicate extends Provider
     #[\Override]
     public function stream(TextRequest $request): Generator
     {
-        $handler = new Stream($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Stream(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handle($request);
     }
@@ -114,10 +127,12 @@ class Replicate extends Provider
     #[\Override]
     public function embeddings(EmbeddingsRequest $request): EmbeddingsResponse
     {
-        $handler = new Embeddings($this->client(
-            $request->clientOptions(),
-            $request->clientRetry()
-        ), $this->pollingInterval, $this->maxWaitTime);
+        $handler = new Embeddings(
+            $this->client($request->clientOptions(), $request->clientRetry()),
+            $this->useSyncMode,
+            $this->pollingInterval,
+            $this->maxWaitTime
+        );
 
         return $handler->handle($request);
     }

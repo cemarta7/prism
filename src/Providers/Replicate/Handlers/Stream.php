@@ -6,9 +6,7 @@ namespace Prism\Prism\Providers\Replicate\Handlers;
 
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Str;
 use Prism\Prism\Exceptions\PrismException;
-use Prism\Prism\Exceptions\PrismStreamDecodeException;
 use Prism\Prism\Providers\Replicate\Concerns\HandlesPredictions;
 use Prism\Prism\Providers\Replicate\Maps\FinishReasonMap;
 use Prism\Prism\Providers\Replicate\Maps\MessageMap;
@@ -33,8 +31,9 @@ class Stream
 
     public function __construct(
         protected PendingRequest $client,
-        protected int $pollingInterval,
-        protected int $maxWaitTime
+        protected bool $useSyncMode = true,
+        protected int $pollingInterval = 1000,
+        protected int $maxWaitTime = 60
     ) {
         $this->state = new StreamState;
     }
@@ -96,57 +95,91 @@ class Stream
      */
     protected function processSSEStream(string $streamUrl, string $predictionId): Generator
     {
-        // Connect to the SSE stream
-        $response = $this->client->withOptions(['stream' => true])->get($streamUrl);
+        // Connect to the SSE stream with proper headers
+        $response = $this->client
+            ->withHeaders(['Accept' => 'text/event-stream'])
+            ->withOptions(['stream' => true])
+            ->get($streamUrl);
+
         $stream = $response->getBody();
 
         $textStarted = false;
         $finalStatus = 'succeeded';
         $metrics = [];
+        $currentEvent = null;
 
         try {
             while (! $stream->eof()) {
-                $data = $this->parseNextDataLine($stream);
-
-                if ($data === null) {
+                $line = $this->readLine($stream);
+                // Skip empty lines and comments
+                if ($line === '') {
+                    continue;
+                }
+                if ($line === "\n") {
+                    continue;
+                }
+                if (str_starts_with($line, ':')) {
                     continue;
                 }
 
-                // Handle different SSE event types
-                $event = $data['event'] ?? null;
+                // Parse SSE field
+                if (str_starts_with($line, 'event:')) {
+                    $currentEvent = trim(substr($line, strlen('event:')));
+                } elseif (str_starts_with($line, 'data:')) {
+                    $data = substr($line, strlen('data:'));
+                    // Remove leading space if present (SSE spec)
+                    if (str_starts_with($data, ' ')) {
+                        $data = substr($data, 1);
+                    }
+                    // Remove trailing newline
+                    $data = rtrim($data, "\n");
 
-                if ($event === 'output') {
-                    // Text output event
-                    if (! $textStarted) {
-                        yield new TextStartEvent(
-                            id: EventID::generate(),
-                            timestamp: time(),
-                            messageId: $this->state->messageId()
-                        );
-                        $textStarted = true;
+                    // Handle event based on type
+                    if ($currentEvent === 'output') {
+                        // Text output event (data is plain text)
+                        if (! $textStarted) {
+                            yield new TextStartEvent(
+                                id: EventID::generate(),
+                                timestamp: time(),
+                                messageId: $this->state->messageId()
+                            );
+                            $textStarted = true;
+                        }
+
+                        if ($data !== '') {
+                            $this->state->appendText($data);
+
+                            yield new TextDeltaEvent(
+                                id: EventID::generate(),
+                                timestamp: time(),
+                                delta: $data,
+                                messageId: $this->state->messageId()
+                            );
+                        }
+                    } elseif ($currentEvent === 'done') {
+                        // Stream completion event (data is JSON)
+                        try {
+                            $doneData = json_decode($data, true, flags: JSON_THROW_ON_ERROR);
+                            $finalStatus = $doneData['status'] ?? 'succeeded';
+                            $metrics = $doneData['metrics'] ?? [];
+                        } catch (Throwable) {
+                            // Empty done event
+                            $finalStatus = 'succeeded';
+                        }
+                        break;
+                    } elseif ($currentEvent === 'error') {
+                        // Error event (data is JSON)
+                        try {
+                            $errorData = json_decode($data, true, flags: JSON_THROW_ON_ERROR);
+                            $errorMessage = $errorData['detail'] ?? $data;
+                        } catch (Throwable) {
+                            $errorMessage = $data;
+                        }
+                        throw new PrismException("Replicate streaming error: {$errorMessage}");
                     }
 
-                    $token = $data['data'] ?? '';
-
-                    if ($token !== '') {
-                        $this->state->appendText($token);
-
-                        yield new TextDeltaEvent(
-                            id: EventID::generate(),
-                            timestamp: time(),
-                            delta: $token,
-                            messageId: $this->state->messageId()
-                        );
-                    }
-                } elseif ($event === 'done') {
-                    // Stream completion event
-                    $finalStatus = $data['status'] ?? 'succeeded';
-                    $metrics = $data['metrics'] ?? [];
-                    break;
-                } elseif ($event === 'error') {
-                    // Error event
-                    $errorMessage = $data['error'] ?? 'Unknown streaming error';
-                    throw new PrismException("Replicate streaming error: {$errorMessage}");
+                    // Reset event type after processing
+                    $currentEvent = null;
                 }
             }
         } finally {
@@ -172,42 +205,6 @@ class Stream
                 completionTokens: $metrics['output_token_count'] ?? 0,
             ),
         );
-    }
-
-    /**
-     * Parse next SSE data line from stream.
-     *
-     * @return array<string, mixed>|null
-     */
-    protected function parseNextDataLine(StreamInterface $stream): ?array
-    {
-        $line = $this->readLine($stream);
-
-        if (! str_starts_with($line, 'data:')) {
-            return null;
-        }
-
-        $line = trim(substr($line, strlen('data: ')));
-
-        // Check for stream end markers
-        if ($line === '' || Str::contains($line, 'done')) {
-            // Try to parse as JSON in case it's a done event with data
-            if (Str::startsWith($line, '{')) {
-                try {
-                    return json_decode($line, true, flags: JSON_THROW_ON_ERROR);
-                } catch (Throwable) {
-                    return null;
-                }
-            }
-
-            return null;
-        }
-
-        try {
-            return json_decode($line, true, flags: JSON_THROW_ON_ERROR);
-        } catch (Throwable $e) {
-            throw new PrismStreamDecodeException('Replicate', $e);
-        }
     }
 
     /**
