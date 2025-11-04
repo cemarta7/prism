@@ -12,6 +12,8 @@ use Prism\Prism\Audio\SpeechToTextRequest;
 use Prism\Prism\Audio\TextResponse as SpeechToTextResponse;
 use Prism\Prism\Audio\TextToSpeechRequest;
 use Prism\Prism\Concerns\InitializesClient;
+use Prism\Prism\Embeddings\Request as EmbeddingsRequest;
+use Prism\Prism\Embeddings\Response as EmbeddingsResponse;
 use Prism\Prism\Enums\Provider as ProviderName;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Exceptions\PrismProviderOverloadedException;
@@ -21,6 +23,7 @@ use Prism\Prism\Images\Request as ImagesRequest;
 use Prism\Prism\Images\Response as ImagesResponse;
 use Prism\Prism\Providers\Provider;
 use Prism\Prism\Providers\Replicate\Handlers\Audio;
+use Prism\Prism\Providers\Replicate\Handlers\Embeddings;
 use Prism\Prism\Providers\Replicate\Handlers\Images;
 use Prism\Prism\Providers\Replicate\Handlers\Stream;
 use Prism\Prism\Providers\Replicate\Handlers\Structured as StructuredHandler;
@@ -101,6 +104,17 @@ class Replicate extends Provider
     public function stream(TextRequest $request): Generator
     {
         $handler = new Stream($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ), $this->pollingInterval, $this->maxWaitTime);
+
+        return $handler->handle($request);
+    }
+
+    #[\Override]
+    public function embeddings(EmbeddingsRequest $request): EmbeddingsResponse
+    {
+        $handler = new Embeddings($this->client(
             $request->clientOptions(),
             $request->clientRetry()
         ), $this->pollingInterval, $this->maxWaitTime);
