@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prism\Prism\Providers\Replicate;
 
+use Generator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Prism\Prism\Audio\AudioResponse as TextToSpeechResponse;
@@ -21,6 +22,7 @@ use Prism\Prism\Images\Response as ImagesResponse;
 use Prism\Prism\Providers\Provider;
 use Prism\Prism\Providers\Replicate\Handlers\Audio;
 use Prism\Prism\Providers\Replicate\Handlers\Images;
+use Prism\Prism\Providers\Replicate\Handlers\Stream;
 use Prism\Prism\Providers\Replicate\Handlers\Structured as StructuredHandler;
 use Prism\Prism\Providers\Replicate\Handlers\Text;
 use Prism\Prism\Structured\Request as StructuredRequest;
@@ -88,6 +90,17 @@ class Replicate extends Provider
     public function structured(StructuredRequest $request): StructuredResponse
     {
         $handler = new StructuredHandler($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ), $this->pollingInterval, $this->maxWaitTime);
+
+        return $handler->handle($request);
+    }
+
+    #[\Override]
+    public function stream(TextRequest $request): Generator
+    {
+        $handler = new Stream($this->client(
             $request->clientOptions(),
             $request->clientRetry()
         ), $this->pollingInterval, $this->maxWaitTime);
