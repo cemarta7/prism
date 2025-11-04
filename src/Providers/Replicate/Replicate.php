@@ -6,6 +6,10 @@ namespace Prism\Prism\Providers\Replicate;
 
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Prism\Prism\Audio\AudioResponse as TextToSpeechResponse;
+use Prism\Prism\Audio\SpeechToTextRequest;
+use Prism\Prism\Audio\TextResponse as SpeechToTextResponse;
+use Prism\Prism\Audio\TextToSpeechRequest;
 use Prism\Prism\Concerns\InitializesClient;
 use Prism\Prism\Enums\Provider as ProviderName;
 use Prism\Prism\Exceptions\PrismException;
@@ -13,6 +17,7 @@ use Prism\Prism\Exceptions\PrismProviderOverloadedException;
 use Prism\Prism\Exceptions\PrismRateLimitedException;
 use Prism\Prism\Exceptions\PrismRequestTooLargeException;
 use Prism\Prism\Providers\Provider;
+use Prism\Prism\Providers\Replicate\Handlers\Audio;
 use Prism\Prism\Providers\Replicate\Handlers\Text;
 use Prism\Prism\Text\Request as TextRequest;
 use Prism\Prism\Text\Response as TextResponse;
@@ -38,6 +43,28 @@ class Replicate extends Provider
         ), $this->pollingInterval, $this->maxWaitTime);
 
         return $handler->handle($request);
+    }
+
+    #[\Override]
+    public function textToSpeech(TextToSpeechRequest $request): TextToSpeechResponse
+    {
+        $handler = new Audio($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ), $this->pollingInterval, $this->maxWaitTime);
+
+        return $handler->handleTextToSpeech($request);
+    }
+
+    #[\Override]
+    public function speechToText(SpeechToTextRequest $request): SpeechToTextResponse
+    {
+        $handler = new Audio($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ), $this->pollingInterval, $this->maxWaitTime);
+
+        return $handler->handleSpeechToText($request);
     }
 
     #[\Override]

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prism\Prism\Providers\Replicate\Maps;
 
+use Prism\Prism\Contracts\Message;
 use Prism\Prism\ValueObjects\Messages\AssistantMessage;
 use Prism\Prism\ValueObjects\Messages\SystemMessage;
 use Prism\Prism\ValueObjects\Messages\ToolResultMessage;
@@ -14,7 +15,7 @@ class MessageMap
     /**
      * Map Prism messages to Replicate prompt format.
      *
-     * @param  array<int, SystemMessage|UserMessage|AssistantMessage|ToolResultMessage>  $messages
+     * @param  array<int, Message>  $messages
      */
     public static function map(array $messages): string
     {
