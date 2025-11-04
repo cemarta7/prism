@@ -21,7 +21,10 @@ use Prism\Prism\Images\Response as ImagesResponse;
 use Prism\Prism\Providers\Provider;
 use Prism\Prism\Providers\Replicate\Handlers\Audio;
 use Prism\Prism\Providers\Replicate\Handlers\Images;
+use Prism\Prism\Providers\Replicate\Handlers\Structured as StructuredHandler;
 use Prism\Prism\Providers\Replicate\Handlers\Text;
+use Prism\Prism\Structured\Request as StructuredRequest;
+use Prism\Prism\Structured\Response as StructuredResponse;
 use Prism\Prism\Text\Request as TextRequest;
 use Prism\Prism\Text\Response as TextResponse;
 
@@ -74,6 +77,17 @@ class Replicate extends Provider
     public function images(ImagesRequest $request): ImagesResponse
     {
         $handler = new Images($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ), $this->pollingInterval, $this->maxWaitTime);
+
+        return $handler->handle($request);
+    }
+
+    #[\Override]
+    public function structured(StructuredRequest $request): StructuredResponse
+    {
+        $handler = new StructuredHandler($this->client(
             $request->clientOptions(),
             $request->clientRetry()
         ), $this->pollingInterval, $this->maxWaitTime);
