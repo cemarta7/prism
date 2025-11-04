@@ -90,7 +90,7 @@ echo $response->structured['rating']; // 5
 
 ### ✅ Streaming
 
-Stream text generation token-by-token for real-time UX.
+Stream text generation token-by-token for real-time UX using Server-Sent Events (SSE).
 
 ```php
 use Prism\Prism\Facades\Prism;
@@ -101,11 +101,15 @@ $stream = Prism::text()
     ->stream();
 
 foreach ($stream as $chunk) {
-    echo $chunk->text; // Prints tokens as they arrive
+    echo $chunk->text; // Prints tokens as they arrive in real-time
 }
 ```
 
-**Implementation note:** Replicate returns predictions as token arrays. Prism simulates streaming by yielding tokens progressively with full event lifecycle support (StreamStart, TextDelta, StreamEnd).
+**How it works:** 
+- Prism connects to Replicate's SSE streaming endpoint (`urls.stream`) for true real-time token delivery
+- Tokens arrive progressively as the model generates them (no waiting for completion)
+- Full event lifecycle support: StreamStart → TextStart → TextDelta(s) → TextComplete → StreamEnd
+- Automatic fallback to simulated streaming if SSE is unavailable
 
 ### ✅ Image Generation
 
